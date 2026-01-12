@@ -1,26 +1,49 @@
 export default {
   async fetch(req) {
-    try {
-      const r = await fetch("https://online.fliflik.com/get-video-link")
-      const j = await r.json()
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    }
 
-      return Response.json({
-        ok: true,
-        url: j.data,
-        msg: "success"
-      }, {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: cors })
+    }
+
+    try {
+      const url = "https://online.fliflik.com/get-video-link"
+
+      const r = await fetch(url, {
+        method: "GET",
         headers: {
-          "Access-Control-Allow-Origin": "*",
+          "User-Agent": "Mozilla/5.0 (Worker Backend)"
+        }
+      })
+
+      const json = await r.json()
+
+      return new Response(JSON.stringify({
+        ok: true,
+        url: json.data,
+        msg: "success"
+      }), {
+        headers: {
+          ...cors,
           "Content-Type": "application/json"
         }
       })
 
     } catch (e) {
-      return Response.json({
+      return new Response(JSON.stringify({
         ok: false,
-        msg: "worker-error",
         error: e.toString()
-      }, { status: 500 })
+      }), {
+        status: 500,
+        headers: {
+          ...cors,
+          "Content-Type": "application/json"
+        }
+      })
     }
   }
 }
