@@ -1,39 +1,39 @@
 
+# Sora Remover Watermark Worker
 
-Dokumentasi Worker “Sora Remover Watermark”
-
-1️⃣ URL Endpoint Worker
-
-Endpoint	Method	Deskripsi
-
-/get-video-link	POST	Mengambil link video dari URL yang dikirim, support single atau multiple URL
-
-
-CORS: * → aman untuk front-end.
-
+Worker ini berfungsi sebagai **backend proxy** untuk mengubah URL video menjadi link video bersih (tanpa watermark) dan mendukung banyak klien.
 
 ---
 
-2️⃣ Headers yang Dibutuhkan
+## 1️⃣ URL Endpoint
 
-Header	Wajib?	Deskripsi
+| Endpoint | Method | Deskripsi |
+|----------|--------|-----------|
+| `/get-video-link` | POST | Mengambil video dari URL yang dikirim oleh klien, mendukung single atau batch URL |
 
-Content-Type	✅	Harus application/json
-x-api-key	✅	API-key klien untuk autentikasi & rate-limit
-
-
+**CORS:** `*` → dapat digunakan oleh front-end mana pun.
 
 ---
 
-3️⃣ Request Body
+## 2️⃣ Headers
 
-Single URL:
+| Header | Wajib? | Deskripsi |
+|--------|--------|-----------|
+| `Content-Type` | ✅ | Harus `application/json` |
+| `x-api-key` | ✅ | API-key unik klien untuk autentikasi dan rate-limit |
 
+---
+
+## 3️⃣ Request Body
+
+**Single URL:**
+
+```json
 {
   "url": "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90"
 }
 
-Multiple URL (Batch):
+Batch URL (Multiple URL):
 
 {
   "url": [
@@ -47,7 +47,7 @@ Multiple URL (Batch):
 
 4️⃣ Response Body
 
-Sukses single / batch URL:
+Sukses:
 
 {
   "code": 200,
@@ -55,13 +55,8 @@ Sukses single / batch URL:
   "data": [
     {
       "url": "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90",
-      "data": "https://videos.openai.com/az/files/00000000-94fc-7285-a34e-faf15694be48/raw?sp=r...",
-      "source": "fetched" // "cache" / "supabase" / "fetched"
-    },
-    {
-      "url": "https://sora.chatgpt.com/p/s_abcdef1234567890",
-      "data": "https://videos.openai.com/az/files/00000000-xxxx/raw?sp=r...",
-      "source": "supabase"
+      "data": "https://videos.openai.com/az/files/.../raw?sp=r...",
+      "source": "fetched"
     }
   ]
 }
@@ -86,7 +81,7 @@ Error / Rate-limit / API-key invalid:
 
 ---
 
-5️⃣ Struktur Supabase
+5️⃣ Supabase Database (Opsional)
 
 Tabel clients
 
@@ -105,7 +100,7 @@ Field	Tipe	Deskripsi
 
 id	uuid	Primary key
 url	text	URL asli klien
-data	text/json	URL video hasil fetch
+data	text	Link video hasil fetch
 created_at	timestamptz	Waktu disimpan
 
 
@@ -116,7 +111,7 @@ Field	Tipe	Deskripsi
 id	uuid	Primary key
 client_id	uuid	Foreign key ke clients
 api_key	text	API-key
-used_today	int	Jumlah request yang tercatat
+used_today	int	Jumlah request
 last_reset	timestamptz	Waktu reset
 timestamp	timestamptz	Waktu request tercatat
 
@@ -124,70 +119,33 @@ timestamp	timestamptz	Waktu request tercatat
 
 ---
 
-6️⃣ Worker Logic Flow
+6️⃣ Logic Flow
 
-1. CORS & Method Check
-
-Support POST + preflight OPTIONS
+1. CORS & Method Check → hanya menerima POST
 
 
-
-2. API-key Validation
-
-Ambil data klien dari Supabase clients
-
-Jika invalid → return 403
+2. API-key Validation → pastikan klien valid
 
 
-
-3. Rate-limit Check
-
-Jika request melebihi daily_limit → return 429
-
-Reset setiap hari
+3. Rate-limit Check → pastikan klien tidak melebihi limit
 
 
-
-4. Memory Cache Check
-
-TTL 5 menit
-
-Jika ada → return cepat
+4. Memory Cache Check → jika URL sudah di-cache, langsung return
 
 
-
-5. Supabase DB Check
-
-Kalau ada video di DB → return
-
-Kalau tidak ada → lanjut fetch endpoint asli
+5. Database Check → jika URL tersimpan di DB, gunakan hasil cached
 
 
-
-6. Fetch Endpoint Asli
-
-POST ke https://online.fliflik.com/get-video-link
-
-Retry 2x jika gagal
+6. Fetch Video Link → ambil video link untuk URL baru
 
 
-
-7. Simpan Hasil
-
-Memory cache + Supabase videos
+7. Simpan ke Cache / DB → untuk request berikutnya lebih cepat
 
 
-
-8. Logging / Analytics
-
-Tulis ke clients_usage
+8. Logging / Analytics → catat setiap request ke DB
 
 
-
-9. Return Response ke Klien
-
-Single / batch URL
-
+9. Return Response → single / batch URL
 
 
 
@@ -213,10 +171,23 @@ curl -X POST "https://sora2-remover-watermark.raxnetglobal.workers.dev/get-video
 
 ---
 
-8️⃣ Front-end Integration
+8️⃣ Tips Optimasi
 
-Fetch API contoh:
+Gunakan batch request → hemat request
 
+Gunakan memory cache + Supabase DB → cepat & hemat biaya
+
+Gunakan rate-limit per klien → aman untuk banyak pengguna
+
+Gunakan logging analytics → pantau usage & traffic
+
+Gunakan cron job → reset used_today tiap hari jam 00:00
+
+
+
+---
+
+9️⃣ Front-end Integration
 
 const response = await fetch("https://sora2-remover-watermark.raxnetglobal.workers.dev/get-video-link", {
   method: "POST",
@@ -229,33 +200,17 @@ const response = await fetch("https://sora2-remover-watermark.raxnetglobal.worke
 const data = await response.json();
 console.log(data);
 
-Mendukung array URL → loop atau batch UI
+Mendukung array URL → loop atau batch di front-end
 
 
 
 ---
 
-9️⃣ Tips Optimasi & Skala
-
-1. Batch request → kurangi banyak call endpoint asli
-
-
-2. Memory cache + Supabase DB → cepat + hemat biaya
-
-
-3. API-key & rate-limit → aman untuk banyak klien
-
-
-4. Logging analytics → monitor usage & traffic tinggi
-
-
-5. Cron job → reset used_today tiap jam 00:00
-
-
+README ini 100% tidak menyebut endpoint asli, semua request mengacu ke Worker endpoint.
 
 
 ---
 
-Kalau Sobat mau, saya bisa buatkan versi PDF dokumentasi + diagram flowchart visual siap pakai untuk tim developer atau front-end.
+Kalau mau, Sobat, saya bisa buatkan versi README.md + diagram flowchart visual supaya lebih jelas alur Worker → cache → DB → front-end.
 
-Apakah mau saya buatkan versi PDF + visual flowchart itu juga?
+Apakah mau saya buatkan versi flowchart itu juga?
