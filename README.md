@@ -1,139 +1,261 @@
 
 
-<h1 align="center">Video Resolver Worker Backend</h1>
+Dokumentasi Worker “Sora Remover Watermark”
 
-<p align="center">
-  <strong>Worker Backend</strong> untuk melakukan resolusi URL dan mengekstrak direct video link.
-</p>
+1️⃣ URL Endpoint Worker
 
-<hr />
+Endpoint	Method	Deskripsi
 
-<h2>🧩 Apa Ini?</h2>
+/get-video-link	POST	Mengambil link video dari URL yang dikirim, support single atau multiple URL
 
-<p>
-Ini adalah <strong>Worker Backend</strong> yang berfungsi sebagai middleware untuk aplikasi video.
-Tujuan utamanya adalah menerima URL sumber dari client, melakukan proses resolusi, dan
-menghasilkan <strong>direct video link</strong> yang dapat diputar langsung di browser, video player,
-atau digunakan kembali oleh aplikasi lain.
-</p>
 
-<p>
-Produk ini dapat diintegrasikan dengan frontend, mobile app, desktop app,
-atau sistem internal sebagai <strong>backend video fetcher</strong>.
-</p>
+CORS: * → aman untuk front-end.
 
-<hr />
 
-<h2>🏗 Cara Kerja (Arsitektur Singkat)</h2>
-
-<ol>
-  <li>Frontend / Client mengirim URL dalam format JSON ke Worker Backend.</li>
-  <li>Worker melakukan resolusi media secara internal.</li>
-  <li>Worker mengembalikan direct link sebagai output JSON.</li>
-  <li>Client bebas menampilkan, memutar, atau mendownload video tersebut.</li>
-</ol>
-
-<hr />
-
-<h2>🔌 Endpoint</h2>
-
-<pre>
-POST /
-</pre>
-
-Example:
-<pre>
-https://your-worker-url.workers.dev/
-</pre>
-
-<hr />
-
-<h2>📥 Request</h2>
-
-<pre>
-Content-Type: application/json
-</pre>
-
-```json
-{
-  "url": "https://example.com/video-source"
-}
-
-<table>
-<tr><th>Field</th><th>Tipe</th><th>Wajib</th><th>Deskripsi</th></tr>
-<tr><td>url</td><td>string</td><td>Yes</td><td>URL sumber video yang ingin di-resolve</td></tr>
-</table><hr /><h2>📤 Response (Success)</h2>{
-  "ok": true,
-  "url": "https://direct-video-link.mp4"
-}
-
-<h2>❌ Response (Error)</h2>{
-  "ok": false,
-  "error": "Reason message"
-}
-
-Kemungkinan error:
-
-<ul>
-  <li>Input tidak valid</li>
-  <li>URL tidak didukung</li>
-  <li>Resolusi gagal</li>
-  <li>Internal processing error</li>
-</ul><hr /><h2>🧪 Tes via cURL</h2>curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/video"}' \
-  https://your-worker-url.workers.dev/
-
-Output:
-
-{
-  "ok": true,
-  "url": "https://direct-video-link.mp4"
-}
-
-<hr /><h2>🎮 Integrasi Frontend</h2>const res = await fetch("https://your-worker-url.workers.dev/", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ url })
-});
-
-const data = await res.json();
-console.log(data.url);
-
-<hr /><h2>📺 Direct Play Example (HTML)</h2><video controls src="https://direct-video-link.mp4"></video>
-
-<hr /><h2>🎯 Fungsi Utama</h2><ul>
-  <li>Video URL resolver</li>
-  <li>Direct link extractor</li>
-  <li>Media backend aggregator</li>
-  <li>Frontend-safe response</li>
-  <li>Bisa difungsikan sebagai API</li>
-</ul><hr /><h2>🧱 Posisi dalam Sistem</h2><p>
-Backend ini berperan sebagai <strong>jembatan</strong> antara aplikasi client dan media source.
-</p>Diagram pendek:
-
-<pre>
-Client → Worker Backend → Media Source → Worker Backend → Client
-</pre>Worker menghindari:
-
-<ul>
-  <li>CORS error</li>
-  <li>Exposure logic di client</li>
-  <li>Request blockage oleh browser</li>
-</ul><hr /><h2>📦 Penggunaan Komersial</h2>Backend dapat dikemas untuk:
-
-<ul>
-  <li>API komersial</li>
-  <li>Platform SaaS</li>
-  <li>Private backend project</li>
-  <li>Video processing pipeline</li>
-  <li>Internal tools</li>
-</ul><hr /><h2>🔐 Security & Privacy</h2><ul>
-  <li>Tidak menyimpan data pengguna</li>
-  <li>Tidak melakukan logging sensitif</li>
-  <li>Logic internal disembunyikan</li>
-  <li>Dapat ditambah auth/token (optional)</li>
-</ul>
-```
 ---
 
+2️⃣ Headers yang Dibutuhkan
+
+Header	Wajib?	Deskripsi
+
+Content-Type	✅	Harus application/json
+x-api-key	✅	API-key klien untuk autentikasi & rate-limit
+
+
+
+---
+
+3️⃣ Request Body
+
+Single URL:
+
+{
+  "url": "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90"
+}
+
+Multiple URL (Batch):
+
+{
+  "url": [
+    "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90",
+    "https://sora.chatgpt.com/p/s_abcdef1234567890"
+  ]
+}
+
+
+---
+
+4️⃣ Response Body
+
+Sukses single / batch URL:
+
+{
+  "code": 200,
+  "msg": "success",
+  "data": [
+    {
+      "url": "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90",
+      "data": "https://videos.openai.com/az/files/00000000-94fc-7285-a34e-faf15694be48/raw?sp=r...",
+      "source": "fetched" // "cache" / "supabase" / "fetched"
+    },
+    {
+      "url": "https://sora.chatgpt.com/p/s_abcdef1234567890",
+      "data": "https://videos.openai.com/az/files/00000000-xxxx/raw?sp=r...",
+      "source": "supabase"
+    }
+  ]
+}
+
+Error / Rate-limit / API-key invalid:
+
+{
+  "code": 403,
+  "msg": "Invalid API-key"
+}
+
+{
+  "code": 429,
+  "msg": "Daily limit exceeded"
+}
+
+{
+  "code": 500,
+  "msg": "Internal server error"
+}
+
+
+---
+
+5️⃣ Struktur Supabase
+
+Tabel clients
+
+Field	Tipe	Deskripsi
+
+id	uuid	Primary key
+api_key	text	API-key unik klien
+daily_limit	int	Batas request per hari
+used_today	int	Jumlah request hari ini
+last_reset	timestamptz	Waktu terakhir reset harian
+
+
+Tabel videos
+
+Field	Tipe	Deskripsi
+
+id	uuid	Primary key
+url	text	URL asli klien
+data	text/json	URL video hasil fetch
+created_at	timestamptz	Waktu disimpan
+
+
+Tabel clients_usage
+
+Field	Tipe	Deskripsi
+
+id	uuid	Primary key
+client_id	uuid	Foreign key ke clients
+api_key	text	API-key
+used_today	int	Jumlah request yang tercatat
+last_reset	timestamptz	Waktu reset
+timestamp	timestamptz	Waktu request tercatat
+
+
+
+---
+
+6️⃣ Worker Logic Flow
+
+1. CORS & Method Check
+
+Support POST + preflight OPTIONS
+
+
+
+2. API-key Validation
+
+Ambil data klien dari Supabase clients
+
+Jika invalid → return 403
+
+
+
+3. Rate-limit Check
+
+Jika request melebihi daily_limit → return 429
+
+Reset setiap hari
+
+
+
+4. Memory Cache Check
+
+TTL 5 menit
+
+Jika ada → return cepat
+
+
+
+5. Supabase DB Check
+
+Kalau ada video di DB → return
+
+Kalau tidak ada → lanjut fetch endpoint asli
+
+
+
+6. Fetch Endpoint Asli
+
+POST ke https://online.fliflik.com/get-video-link
+
+Retry 2x jika gagal
+
+
+
+7. Simpan Hasil
+
+Memory cache + Supabase videos
+
+
+
+8. Logging / Analytics
+
+Tulis ke clients_usage
+
+
+
+9. Return Response ke Klien
+
+Single / batch URL
+
+
+
+
+
+---
+
+7️⃣ Contoh cURL
+
+Single URL:
+
+curl -X POST "https://sora2-remover-watermark.raxnetglobal.workers.dev/get-video-link" \
+-H "Content-Type: application/json" \
+-H "x-api-key: <API_KEY_KLIEN>" \
+-d '{"url":"https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90"}'
+
+Batch URL:
+
+curl -X POST "https://sora2-remover-watermark.raxnetglobal.workers.dev/get-video-link" \
+-H "Content-Type: application/json" \
+-H "x-api-key: <API_KEY_KLIEN>" \
+-d '{"url":["https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90","https://sora.chatgpt.com/p/s_abcdef1234567890"]}'
+
+
+---
+
+8️⃣ Front-end Integration
+
+Fetch API contoh:
+
+
+const response = await fetch("https://sora2-remover-watermark.raxnetglobal.workers.dev/get-video-link", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": "<API_KEY_KLIEN>"
+  },
+  body: JSON.stringify({ url: "https://sora.chatgpt.com/p/s_691284466e908191a23cc542f66a5c90" })
+});
+const data = await response.json();
+console.log(data);
+
+Mendukung array URL → loop atau batch UI
+
+
+
+---
+
+9️⃣ Tips Optimasi & Skala
+
+1. Batch request → kurangi banyak call endpoint asli
+
+
+2. Memory cache + Supabase DB → cepat + hemat biaya
+
+
+3. API-key & rate-limit → aman untuk banyak klien
+
+
+4. Logging analytics → monitor usage & traffic tinggi
+
+
+5. Cron job → reset used_today tiap jam 00:00
+
+
+
+
+---
+
+Kalau Sobat mau, saya bisa buatkan versi PDF dokumentasi + diagram flowchart visual siap pakai untuk tim developer atau front-end.
+
+Apakah mau saya buatkan versi PDF + visual flowchart itu juga?
