@@ -1,68 +1,53 @@
-addEventListener("fetch", event => {
-  event.respondWith(handleRequest(event.request))
-})
+export default {
+  async fetch(request) {
+    // Pastikan endpoint Worker adalah /get-video-link
+    if (new URL(request.url).pathname !== "/get-video-link") {
+      return new Response(JSON.stringify({ code: 404, msg: "Endpoint not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
-/**
- * Worker Endpoint: menerima JSON { "url": "<URL Sora>" }
- * Mengembalikan JSON { code:200, data:"<video_link>", msg:"success" }
- */
-async function handleRequest(request) {
-  try {
-    // Pastikan method POST
     if (request.method !== "POST") {
-      return new Response(JSON.stringify({ code:405, msg:"Method Not Allowed" }), {
+      return new Response(JSON.stringify({ code: 405, msg: "Method Not Allowed" }), {
         status: 405,
         headers: { "Content-Type": "application/json" }
-      })
+      });
     }
 
-    // Parse body JSON
-    const reqData = await request.json()
-    const soraUrl = reqData.url
-    if (!soraUrl) {
-      return new Response(JSON.stringify({ code:400, msg:"Invalid request: missing url" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      })
-    }
+    try {
+      // Parse JSON dari front-end
+      const reqData = await request.json();
+      const videoPageUrl = reqData.url;
+      if (!videoPageUrl) throw new Error("Missing URL");
 
-    // Fetch data dari URL Sora
-    const soraResponse = await fetch(soraUrl)
-    if (!soraResponse.ok) {
-      return new Response(JSON.stringify({ code:500, msg:"Failed to fetch Sora URL" }), {
+      // 🔑 Fetch ke endpoint asli (LiveClick / Fliflik)
+      const endpointAsli = "https://online.fliflik.com/get-video-link";
+      const responseAsli = await fetch(endpointAsli, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: videoPageUrl })
+      });
+
+      if (!responseAsli.ok) throw new Error("Failed to fetch from original endpoint");
+
+      const dataAsli = await responseAsli.json();
+
+      // Return JSON persis format aslinya
+      return new Response(JSON.stringify(dataAsli), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS"
+        }
+      });
+
+    } catch (err) {
+      return new Response(JSON.stringify({ code: 500, msg: err.message }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
-      })
+      });
     }
-
-    const soraJson = await soraResponse.json()
-    // Ambil video link dari property `data`
-    const videoLink = soraJson.data
-    if (!videoLink) {
-      return new Response(JSON.stringify({ code:500, msg:"Video link not found in Sora response" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      })
-    }
-
-    // Kembalikan JSON ke client
-    return new Response(JSON.stringify({
-      code: 200,
-      data: videoLink,
-      msg: "success"
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
-      }
-    })
-
-  } catch (err) {
-    return new Response(JSON.stringify({ code:500, msg:"Internal Server Error", error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    })
   }
 }
