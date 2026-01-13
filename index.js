@@ -1,3 +1,7 @@
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+
 const TARGET_URL = "https://online.fliflik.com/get-video-link";
 
 const corsHeaders = {
@@ -5,17 +9,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-Deno.serve(async (req) => {
-  // Handle preflight CORS
+async function handleRequest(req) {
+  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Ambil body dari request front-end
-    const body = await req.json();
+    const body = await req.json(); // Ambil body dari front-end
 
-    // Kirim request ke endpoint asli
+    // Forward request ke endpoint asli
     const response = await fetch(TARGET_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,7 +27,7 @@ Deno.serve(async (req) => {
 
     const data = await response.json();
 
-    // Balikin ke front-end
+    // Balikkan ke front-end
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -34,4 +37,4 @@ Deno.serve(async (req) => {
       status: 500,
     });
   }
-});
+}
